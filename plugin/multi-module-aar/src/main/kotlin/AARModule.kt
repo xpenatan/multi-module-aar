@@ -25,7 +25,6 @@ import org.gradle.kotlin.dsl.repositories
 import java.io.File
 import java.util.*
 
-
 class AARModule {
 
     companion object {
@@ -93,8 +92,6 @@ class AARModule {
                 val c = project.components as DefaultSoftwareComponentContainer
                 val entry = (c.asMap as TreeMap).ceilingEntry("debug")
                 if (entry != null) {
-                    val displayName = project.displayName
-                    println("Configure AAR plugin Maven: $displayName")
                     val includeDependencies = !(entry.key.contains("aab") || entry.key.contains("apk"))
                     if (includeDependencies) {
                         project.pluginManager.apply(MavenPublishPlugin::class.java)
@@ -127,9 +124,6 @@ class AARModule {
     }
 
     private fun configureDependencies(project: Project) {
-        val displayName = project.displayName
-        println("Configure AAR plugin dependencies: $displayName")
-
         project.repositories {
             let { repositories ->
                 repositories.mavenLocal()
@@ -157,7 +151,7 @@ class AARModule {
                                     // Convert pom dependency to project module
                                     val isDevAARModule = aarKeepModules.contains(mod)
                                     if (isDevAARModule) {
-                                        println("Using project Module: " + mod)
+                                        println("AARPlugin Config: ${config.name} - ${project.path} ---> $mod")
                                         dependency.useTarget(targetProject)
                                     }
                                 }
@@ -171,9 +165,8 @@ class AARModule {
                                     val versionName = aarVersion
                                     val arrName = "${groupName}:${moduleName}:${versionName}"
                                     dependency.useTarget(arrName)
-//                                    println("arrName: " + arrName)
                                 } else {
-                                    println("Using project Module: " + module)
+                                    println("AARPlugin Config: ${config.name} - ${project.path} ---> $module")
                                 }
                             }
                         }
