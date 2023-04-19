@@ -165,14 +165,13 @@ class AARModule {
                                 val module = componentSelector.projectPath
                                 val isDevAARModule = aarKeepModules.contains(module)
                                 if (!isDevAARModule) {
-                                    println("module: " + module)
                                     val pair = getModuleMap(module)
                                     val groupName = pair.first
                                     val moduleName = pair.second
                                     val versionName = aarVersion
                                     val arrName = "${groupName}:${moduleName}:${versionName}"
                                     dependency.useTarget(arrName)
-                                    println("arrName: " + arrName)
+//                                    println("arrName: " + arrName)
                                 } else {
                                     println("Using project Module: " + module)
                                 }
