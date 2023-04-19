@@ -32,10 +32,13 @@ dependencies {
 }
 
 gradlePlugin {
+    website.set("https://github.com/xpenatan/AndroidMultiModuleAAR")
+    vcsUrl.set("https://github.com/xpenatan/AndroidMultiModuleAAR.git")
     val aarModule by plugins.creating {
         id = "io.github.xpenatan.multi-module-aar"
         displayName = "Improve android build time"
         description = "A plugin that helps reducing build times by switching between android project modules to AAR libs"
         implementationClass = "AARModulePlugin"
+        tags.set(listOf("aar", "android", "fast", "build"))
     }
 }
