@@ -1,0 +1,14 @@
+includeBuild("plugin")
+
+include(":demo:app")
+include(":demo:feature:base")
+include(":demo:feature:splash")
+include(":demo:feature:login:start")
+include(":demo:feature:login:login")
+include(":demo:feature:dashboard:start")
+include(":demo:feature:dashboard:dashboard")
+
+include(":demo:lib:components")
+
+include(":demo:standaloneAARlib")
+include(":demo:standalonelib")

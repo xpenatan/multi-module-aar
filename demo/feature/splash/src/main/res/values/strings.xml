@@ -1,0 +1,3 @@
+<resources>
+    <string name="hello_from_app_module">Hello\n MultiModule AAR</string>
+</resources>
