@@ -28,6 +28,7 @@ import java.util.*
 class AARModule {
 
     companion object {
+        const val ENABLE_DEBUG_LOG = "aarEnableLog"
         const val ENABLE_MAVEN = "aarEnableMaven"
         const val ENABLE_MULTI_MODULE = "aarEnableMultiModule"
         const val KEEP_MODULES = "aarKeepModules"
@@ -35,6 +36,7 @@ class AARModule {
 
     private var init = false
 
+    private var aarDebugLog = false
     private var aarEnableMaven = false
     private var aarEnableMultiModule = false
     private var aarKeepModules = ArrayList<String>()
@@ -62,6 +64,10 @@ class AARModule {
                 }
                 if (!aarEnableMaven) {
                     aarEnableMaven = properties.getProperty(ENABLE_MAVEN, "false").toBoolean()
+                }
+
+                if (!aarDebugLog) {
+                    aarDebugLog = properties.getProperty(ENABLE_DEBUG_LOG, "false").toBoolean()
                 }
             }
 
@@ -135,28 +141,34 @@ class AARModule {
 
         project.configurations.configureEach {
             let { config ->
-                if (!config.name.contains("test") && !config.name.contains("Test")) {
-                    resolutionStrategy.dependencySubstitution.all {
-                        let { dependency ->
-                            val componentSelector = dependency.requested
-                            if (componentSelector is ModuleComponentSelector) {
-                                var mod = componentSelector.module
-                                var groupStr = componentSelector.group
-                                groupStr = groupStr.replace("${rootProject.name}", "")
-                                groupStr = groupStr.replace(".", ":")
-                                mod = "${groupStr}:${mod}"
+                resolutionStrategy.dependencySubstitution.all {
+                    let { dependency ->
+                        val componentSelector = dependency.requested
+                        if (componentSelector is ModuleComponentSelector) {
+                            var mod = componentSelector.module
+                            var groupStr = componentSelector.group
+                            groupStr = groupStr.replace("${rootProject.name}", "")
+                            groupStr = groupStr.replace(".", ":")
+                            mod = "${groupStr}:${mod}"
 
-                                val targetProject = project.findProject(mod)
-                                if (targetProject != null) {
-                                    // Convert pom dependency to project module
-                                    val isDevAARModule = aarKeepModules.contains(mod)
-                                    if (isDevAARModule) {
-                                        println("AARPlugin Config: ${config.name} - ${project.path} ---> $mod")
+                            val targetProject = project.findProject(mod)
+                            if (targetProject != null) {
+                                // Convert pom dependency to project module
+                                val useTargetProject = aarKeepModules.contains(mod)
+                                if (useTargetProject) {
+                                    if (aarDebugLog) {
+                                        println("AARPlugin: ${project.path} - KeepModule: $mod - Config: ${config.name}")
+                                    }
+                                    dependency.useTarget(targetProject)
+                                } else {
+                                    if (project.path == mod) {
                                         dependency.useTarget(targetProject)
                                     }
                                 }
-                            } else if (componentSelector is ProjectComponentSelector) {
-                                val module = componentSelector.projectPath
+                            }
+                        } else if (componentSelector is ProjectComponentSelector) {
+                            val module = componentSelector.projectPath
+                            if (project.path != module) {
                                 val isDevAARModule = aarKeepModules.contains(module)
                                 if (!isDevAARModule) {
                                     val pair = getModuleMap(module)
@@ -165,13 +177,10 @@ class AARModule {
                                     val versionName = aarVersion
                                     val arrName = "${groupName}:${moduleName}:${versionName}"
                                     dependency.useTarget(arrName)
-                                } else {
-                                    println("AARPlugin Config: ${config.name} - ${project.path} ---> $module")
                                 }
                             }
                         }
                     }
-
                 }
             }
         }
