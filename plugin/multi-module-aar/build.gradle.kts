@@ -37,7 +37,7 @@ gradlePlugin {
     val aarModule by plugins.creating {
         id = "io.github.xpenatan.multi-module-aar"
         displayName = "Improve android build time"
-        description = "A plugin that helps reducing build times by switching between android project modules and AAR libs"
+        description = "A plugin that help reducing build times by switching between android project modules and AAR libs"
         implementationClass = "AARModulePlugin"
         tags.set(listOf("aar", "android", "fast", "build"))
     }
