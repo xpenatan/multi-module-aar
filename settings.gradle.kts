@@ -1,10 +1,10 @@
 pluginManagement {
+    //Uncomment to use github repo
     includeBuild("plugin")
 }
 
 plugins {
-//    id("io.github.xpenatan.multi-module-aar") version "0.2"
-    id("io.github.xpenatan.multi-module-aar")
+    id("io.github.xpenatan.multi-module-aar") version "0.3"
 }
 
 include(":demo:app")
