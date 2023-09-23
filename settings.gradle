@@ -1,4 +1,11 @@
-includeBuild("plugin")
+pluginManagement {
+    includeBuild("plugin")
+}
+
+plugins {
+//    id("io.github.xpenatan.multi-module-aar") version "0.2"
+    id("io.github.xpenatan.multi-module-aar")
+}
 
 include(":demo:app")
 include(":demo:feature:base")

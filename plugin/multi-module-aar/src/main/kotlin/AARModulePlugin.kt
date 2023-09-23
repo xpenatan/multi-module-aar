@@ -15,12 +15,12 @@
  ******************************************************************************/
 
 import org.gradle.api.Plugin
-import org.gradle.api.Project
+import org.gradle.api.initialization.Settings
 import org.gradle.api.plugins.PluginAware
 
 class AARModulePlugin : Plugin<PluginAware>{
     override fun apply(target: PluginAware) {
-        if(target is Project) {
+        if(target is Settings) {
             AARModule().apply(target)
         }
     }

@@ -17,6 +17,7 @@
 import org.gradle.api.Project
 import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
+import org.gradle.api.initialization.Settings
 import org.gradle.api.internal.component.DefaultSoftwareComponentContainer
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
@@ -27,27 +28,31 @@ import java.util.*
 
 class AARModule {
 
-    private var init = false
-
     private var aarSettings = AARSettings()
 
     private var aarMavenPath = ""
     private var aarVersion = "1.0"
 
-    private lateinit var rootProject: Project
+    private lateinit var projectRoot: Project
 
-    fun apply(project: Project) {
-        if (!init) {
-            rootProject = project.rootProject
+    private var init = false
 
-            aarSettings.loadProperties(project.gradle)
+    fun apply(settings: Settings) {
+        val gradle = settings.gradle
 
-            if (aarSettings.aarEnableMaven || aarSettings.aarEnableMultiModule) {
-                val path = project.rootDir.path
-                aarMavenPath = "$path/localAARMavenRepository"
-                project.configure(project.subprojects) {
-                    if (buildFile.exists()) {
-                        configureSubProject(this)
+        gradle.afterProject {
+            if (!init) {
+                init = true
+                aarSettings.loadProperties(gradle)
+                projectRoot = project.rootProject
+            } else {
+                if (configurations.size > 0) {
+                    if (aarSettings.aarEnableMaven || aarSettings.aarEnableMultiModule) {
+                        val path = project.rootDir.path
+                        aarMavenPath = "$path/localAARMavenRepository"
+                        if (buildFile.exists()) {
+                            configureSubProject(this)
+                        }
                     }
                 }
             }
@@ -76,6 +81,7 @@ class AARModule {
                             let { publishing ->
                                 publishing.repositories {
                                     let { repositories ->
+                                        repositories.mavenLocal()
                                         repositories.maven {
                                             url = File(aarMavenPath).toURI()
                                         }
@@ -83,8 +89,11 @@ class AARModule {
 
                                 }
                                 publishing.publications {
+                                    if (aarSettings.aarDebugLog) {
+                                        logger.error("AARPlugin: Adding maven to ${project.path}")
+                                    }
                                     let { publications ->
-                                        publications.create("multiModuleAAR", MavenPublication::class.java) {
+                                        publications.create("LocalAAR", MavenPublication::class.java) {
                                             groupId = project.group.toString()
                                             artifactId = project.name
                                             version = aarVersion
@@ -118,7 +127,7 @@ class AARModule {
                         if (componentSelector is ModuleComponentSelector) {
                             var mod = componentSelector.module
                             var groupStr = componentSelector.group
-                            groupStr = groupStr.replace("${rootProject.name}", "")
+                            groupStr = groupStr.replace("${projectRoot.name}", "")
                             groupStr = groupStr.replace(".", ":")
                             mod = "${groupStr}:${mod}"
 
@@ -128,7 +137,7 @@ class AARModule {
                                 val useTargetProject = aarSettings.aarKeepModules.contains(mod)
                                 if (useTargetProject) {
                                     if (aarSettings.aarDebugLog) {
-                                        println("AARPlugin: ${project.path} - KeepModule: $mod - Config: ${config.name}")
+                                        project.logger.error("AARPlugin: ${project.path} - KeepModule: $mod - Config: ${config.name}")
                                     }
                                     dependency.useTarget(targetProject)
                                 } else {
@@ -169,7 +178,7 @@ class AARModule {
 
         var groupName = ""
         if (moduleSplit.size == 1) {
-            groupName = rootProject.name
+            groupName = projectRoot.name
         } else {
             var groupStr = moduleStr.replace(":", ".")
             // Replace last
@@ -178,20 +187,8 @@ class AARModule {
             if (pos > -1) {
                 groupStr = groupStr.substring(0, pos) + groupStr.substring(pos + toReplace.length);
             }
-            groupName = rootProject.name + "." + groupStr
+            groupName = projectRoot.name + "." + groupStr
         }
         return Pair(groupName, module)
-    }
-
-    class CustomDepsPluginConvention {
-        // here you can return anything which configuration methods in the
-        // `dependencies` block would accept, e.g. a string or a map
-        fun customDependency(): Map<String, String> {
-            return mapOf(
-                "group" to "com.whatever",
-                "name" to "whatever",
-                "version" to "1.2.3"
-            )
-        }
     }
 }
