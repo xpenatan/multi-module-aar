@@ -27,19 +27,9 @@ import java.util.*
 
 class AARModule {
 
-    companion object {
-        const val ENABLE_DEBUG_LOG = "aarEnableLog"
-        const val ENABLE_MAVEN = "aarEnableMaven"
-        const val ENABLE_MULTI_MODULE = "aarEnableMultiModule"
-        const val KEEP_MODULES = "aarKeepModules"
-    }
-
     private var init = false
 
-    private var aarDebugLog = false
-    private var aarEnableMaven = false
-    private var aarEnableMultiModule = false
-    private var aarKeepModules = ArrayList<String>()
+    private var aarSettings = AARSettings()
 
     private var aarMavenPath = ""
     private var aarVersion = "1.0"
@@ -49,29 +39,10 @@ class AARModule {
     fun apply(project: Project) {
         if (!init) {
             rootProject = project.rootProject
-            val propertiesList = PropertiesUtil.findAllGradleProperties(project.gradle)
 
-            propertiesList.forEach { properties ->
-                if (!aarEnableMultiModule) {
-                    aarEnableMultiModule = properties.getProperty(ENABLE_MULTI_MODULE, "false").toBoolean()
-                    if (aarEnableMultiModule) {
-                        val aarKeepModulesStr = properties.getOrDefault(KEEP_MODULES, "").toString().trim()
-                        if (aarKeepModulesStr.isNotEmpty()) {
-                            val array = aarKeepModulesStr.split(" ")
-                            aarKeepModules.addAll(array)
-                        }
-                    }
-                }
-                if (!aarEnableMaven) {
-                    aarEnableMaven = properties.getProperty(ENABLE_MAVEN, "false").toBoolean()
-                }
+            aarSettings.loadProperties(project.gradle)
 
-                if (!aarDebugLog) {
-                    aarDebugLog = properties.getProperty(ENABLE_DEBUG_LOG, "false").toBoolean()
-                }
-            }
-
-            if (aarEnableMaven || aarEnableMultiModule) {
+            if (aarSettings.aarEnableMaven || aarSettings.aarEnableMultiModule) {
                 val path = project.rootDir.path
                 aarMavenPath = "$path/localAARMavenRepository"
                 project.configure(project.subprojects) {
@@ -84,10 +55,10 @@ class AARModule {
     }
 
     private fun configureSubProject(subproject: Project) {
-        if (aarEnableMaven) {
+        if (aarSettings.aarEnableMaven) {
             configureMaven(subproject)
         }
-        if (aarEnableMultiModule) {
+        if (aarSettings.aarEnableMultiModule) {
             configureDependencies(subproject)
         }
     }
@@ -154,9 +125,9 @@ class AARModule {
                             val targetProject = project.findProject(mod)
                             if (targetProject != null) {
                                 // Convert pom dependency to project module
-                                val useTargetProject = aarKeepModules.contains(mod)
+                                val useTargetProject = aarSettings.aarKeepModules.contains(mod)
                                 if (useTargetProject) {
-                                    if (aarDebugLog) {
+                                    if (aarSettings.aarDebugLog) {
                                         println("AARPlugin: ${project.path} - KeepModule: $mod - Config: ${config.name}")
                                     }
                                     dependency.useTarget(targetProject)
@@ -169,7 +140,7 @@ class AARModule {
                         } else if (componentSelector is ProjectComponentSelector) {
                             val module = componentSelector.projectPath
                             if (project.path != module) {
-                                val isDevAARModule = aarKeepModules.contains(module)
+                                val isDevAARModule = aarSettings.aarKeepModules.contains(module)
                                 if (!isDevAARModule) {
                                     val pair = getModuleMap(module)
                                     val groupName = pair.first
@@ -210,5 +181,17 @@ class AARModule {
             groupName = rootProject.name + "." + groupStr
         }
         return Pair(groupName, module)
+    }
+
+    class CustomDepsPluginConvention {
+        // here you can return anything which configuration methods in the
+        // `dependencies` block would accept, e.g. a string or a map
+        fun customDependency(): Map<String, String> {
+            return mapOf(
+                "group" to "com.whatever",
+                "name" to "whatever",
+                "version" to "1.2.3"
+            )
+        }
     }
 }
