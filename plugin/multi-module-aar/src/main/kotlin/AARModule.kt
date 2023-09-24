@@ -19,9 +19,12 @@ import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
 import org.gradle.api.initialization.Settings
 import org.gradle.api.internal.component.DefaultSoftwareComponentContainer
+import org.gradle.api.internal.project.DefaultProject
+import org.gradle.api.internal.project.ProjectStateInternal
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin
+import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.repositories
 import java.io.File
 import java.util.*
@@ -54,6 +57,28 @@ class AARModule {
                             configureSubProject(this)
                         }
                     }
+                }
+            }
+        }
+
+        gradle.afterProject {
+            val proj = this as DefaultProject
+            val state = proj.state
+            if (state.hasFailure()) {
+                val failure = state.failure
+                val declaredField = ProjectStateInternal::class.java.getDeclaredField("failure")
+                declaredField.isAccessible = true
+                declaredField.set(state, null)
+                var message = failure!!.cause!!.cause!!.message!!
+                message = message.replace("Project with path '", "")
+                message = message.split("'")[0]
+                val pair = getModuleMap(message)
+                val groupName = pair.first
+                val moduleName = pair.second
+                val versionName = aarVersion
+                val arrName = "${groupName}:${moduleName}:${versionName}"
+                dependencies {
+                    "implementation"(arrName)
                 }
             }
         }
