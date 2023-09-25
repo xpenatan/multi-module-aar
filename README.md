@@ -3,29 +3,30 @@
 Gradle plugin that switch between project modules and aar libs.
 This can improve build time if your project contains many modules by building only a few modules instead of the whole project.
 
-For example, a project that contains 100+ modules and takes 15+ minutes to build from scratch. 
-This solution can decrease to about 2 minutes depending on your machine.
-
-The idea behind is that you first generate aar from all modules that acts like a cache and use this plugin to configure
-which module will use aar and which ones will use project modules.
+The idea behind is that the generated aar libs are generated first and the developer choose which module will actually compile.
+Skipping unused modules from building may decrease build time.
 
 ## Usage
 
 ```
-// Root build.gradle
+// settings.gradle
 
 plugins {
-    id("io.github.xpenatan.multi-module-aar")
+    id("io.github.xpenatan.multi-module-aar") version LIB_VERSION
 }
 
-// To generate aar
+// Create a local.properties file and add these properties:
 
-./gradlew publishMultiModuleAARPublicationToMavenRepository -PaarEnableMaven=true -PaarEnableMultiModule=false
+aarEnableLog=false
+aarEnableMaven=false
+aarEnableMultiModule=false
+aarKeepModules=
 
-// local.properties
+To generate aar set aarEnableMaven to true and sync. 
+Call "./gradlew publishLocalAARPublicationToMavenRepository"
+aar files will be created in localAARMavenRepository folder
 
-aarEnableMaven=true
-aarEnableMultiModule=true
-aarKeepModules=\
-:demo:standalonelib
+use aarKeepModules property to select which modules will actually compile every build
+Ex: 
+
 ```

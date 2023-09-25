@@ -15,21 +15,25 @@
  ******************************************************************************/
 
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
 import org.gradle.api.initialization.Settings
+import org.gradle.api.internal.artifacts.dependencies.DefaultDependencyArtifact
+import org.gradle.api.internal.artifacts.dependencies.DefaultExternalModuleDependency
+import org.gradle.api.internal.artifacts.dsl.dependencies.DefaultDependencyHandler
 import org.gradle.api.internal.component.DefaultSoftwareComponentContainer
 import org.gradle.api.internal.project.DefaultProject
-import org.gradle.api.internal.project.ProjectStateInternal
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin
-import org.gradle.kotlin.dsl.dependencies
+import org.gradle.internal.metaobject.DynamicInvokeResult
+import org.gradle.internal.metaobject.MethodAccess
 import org.gradle.kotlin.dsl.repositories
 import java.io.File
 import java.util.*
 
-class AARModule {
+class AARModule : AARDependencyHandler.InvokeMethod {
 
     private var aarSettings = AARSettings()
 
@@ -43,53 +47,31 @@ class AARModule {
     fun apply(settings: Settings) {
         val gradle = settings.gradle
 
-        gradle.afterProject {
+        gradle.beforeProject {
             if (!init) {
                 init = true
                 aarSettings.loadProperties(gradle)
-                projectRoot = project.rootProject
-            } else {
-                if (configurations.size > 0) {
-                    if (aarSettings.aarEnableMaven || aarSettings.aarEnableMultiModule) {
-                        val path = project.rootDir.path
-                        aarMavenPath = "$path/localAARMavenRepository"
-                        if (buildFile.exists()) {
-                            configureSubProject(this)
-                        }
-                    }
-                }
+                projectRoot = rootProject
+            }
+            if (aarSettings.aarEnableMaven) {
+                configureMaven(this)
+            }
+
+            if (aarSettings.aarEnableMultiModule) {
+                configureInvalidCaller(this)
             }
         }
 
         gradle.afterProject {
-            val proj = this as DefaultProject
-            val state = proj.state
-            if (state.hasFailure()) {
-                val failure = state.failure
-                val declaredField = ProjectStateInternal::class.java.getDeclaredField("failure")
-                declaredField.isAccessible = true
-                declaredField.set(state, null)
-                var message = failure!!.cause!!.cause!!.message!!
-                message = message.replace("Project with path '", "")
-                message = message.split("'")[0]
-                val pair = getModuleMap(message)
-                val groupName = pair.first
-                val moduleName = pair.second
-                val versionName = aarVersion
-                val arrName = "${groupName}:${moduleName}:${versionName}"
-                dependencies {
-                    "implementation"(arrName)
+            if (configurations.size > 0) {
+                if (aarSettings.aarEnableMultiModule) {
+                    val path = project.rootDir.path
+                    aarMavenPath = "$path/localAARMavenRepository"
+                    if (buildFile.exists()) {
+                        configureDependencies(this)
+                    }
                 }
             }
-        }
-    }
-
-    private fun configureSubProject(subproject: Project) {
-        if (aarSettings.aarEnableMaven) {
-            configureMaven(subproject)
-        }
-        if (aarSettings.aarEnableMultiModule) {
-            configureDependencies(subproject)
         }
     }
 
@@ -132,6 +114,33 @@ class AARModule {
                 }
             }
         }
+    }
+
+    private fun configureInvalidCaller(project: Project) {
+        val dep = project.dependencies as DefaultDependencyHandler
+        val newHandler = AARDependencyHandler(dep, this)
+        val declaredField = DefaultProject::class.java.getDeclaredField("dependencyHandler")
+        declaredField.isAccessible = true
+        declaredField.set(project, newHandler)
+    }
+
+    override fun invoke(method: MethodAccess, name: String?, vararg arguments: Any?): DynamicInvokeResult {
+        var n = name
+        if(n == "project" && arguments.isNotEmpty()) {
+            val any = arguments[0] as Array<*>
+            val projectPath = any[0].toString()
+            val findProject = projectRoot.findProject(projectPath)
+            if(findProject == null) {
+                val pair = getModuleMap(projectPath)
+                val groupName = pair.first
+                val moduleName = pair.second
+                val versionName = aarVersion
+                val arrName = "${groupName}:${moduleName}:${versionName}"
+                n = "implementation"
+                arguments[0] = arrName as Nothing
+            }
+        }
+        return method.tryInvokeMethod(n, arguments)
     }
 
     private fun configureDependencies(project: Project) {
@@ -215,5 +224,18 @@ class AARModule {
             groupName = projectRoot.name + "." + groupStr
         }
         return Pair(groupName, module)
+    }
+
+    private fun createModuleDependency(
+        group: String,
+        name: String,
+        version: String,
+        artifact: String? = null
+    ): Dependency {
+        val dependency = DefaultExternalModuleDependency(group, name, version, "default")
+        if (artifact != null && !artifact.isEmpty()) {
+            dependency.addArtifact(DefaultDependencyArtifact(name, "jar", "jar", artifact, null))
+        }
+        return dependency
     }
 }
