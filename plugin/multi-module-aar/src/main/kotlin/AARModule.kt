@@ -15,12 +15,9 @@
  ******************************************************************************/
 
 import org.gradle.api.Project
-import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
 import org.gradle.api.initialization.Settings
-import org.gradle.api.internal.artifacts.dependencies.DefaultDependencyArtifact
-import org.gradle.api.internal.artifacts.dependencies.DefaultExternalModuleDependency
 import org.gradle.api.internal.artifacts.dsl.dependencies.DefaultDependencyHandler
 import org.gradle.api.internal.component.DefaultSoftwareComponentContainer
 import org.gradle.api.internal.project.DefaultProject
@@ -43,6 +40,7 @@ class AARModule : AARDependencyHandler.InvokeMethod {
     private lateinit var projectRoot: Project
 
     private var init = false
+    private var projectCount = 0
 
     fun apply(settings: Settings) {
         val gradle = settings.gradle
@@ -68,10 +66,15 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                     val path = project.rootDir.path
                     aarMavenPath = "$path/localAARMavenRepository"
                     if (buildFile.exists()) {
+                        projectCount++
                         configureDependencies(this)
                     }
                 }
             }
+        }
+
+        gradle.projectsEvaluated {
+            rootProject.logger.error("AARPlugin: Total Projects $projectCount")
         }
     }
 
@@ -125,22 +128,21 @@ class AARModule : AARDependencyHandler.InvokeMethod {
     }
 
     override fun invoke(method: MethodAccess, name: String?, vararg arguments: Any?): DynamicInvokeResult {
-        var n = name
-        if(n == "project" && arguments.isNotEmpty()) {
+        if (name == "project" && arguments.isNotEmpty()) {
             val any = arguments[0] as Array<*>
             val projectPath = any[0].toString()
             val findProject = projectRoot.findProject(projectPath)
-            if(findProject == null) {
+            if (findProject == null) {
                 val pair = getModuleMap(projectPath)
                 val groupName = pair.first
                 val moduleName = pair.second
                 val versionName = aarVersion
                 val arrName = "${groupName}:${moduleName}:${versionName}"
-                n = "implementation"
-                arguments[0] = arrName as Nothing
+                any[0] = arrName as Nothing
+                return method.tryInvokeMethod("implementation", any)
             }
         }
-        return method.tryInvokeMethod(n, arguments)
+        return method.tryInvokeMethod(name, arguments)
     }
 
     private fun configureDependencies(project: Project) {
@@ -164,8 +166,7 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                             groupStr = groupStr.replace("${projectRoot.name}", "")
                             groupStr = groupStr.replace(".", ":")
                             mod = "${groupStr}:${mod}"
-
-                            val targetProject = project.findProject(mod)
+                            val targetProject = projectRoot.findProject(mod)
                             if (targetProject != null) {
                                 // Convert pom dependency to project module
                                 val useTargetProject = aarSettings.aarKeepModules.contains(mod)
@@ -224,18 +225,5 @@ class AARModule : AARDependencyHandler.InvokeMethod {
             groupName = projectRoot.name + "." + groupStr
         }
         return Pair(groupName, module)
-    }
-
-    private fun createModuleDependency(
-        group: String,
-        name: String,
-        version: String,
-        artifact: String? = null
-    ): Dependency {
-        val dependency = DefaultExternalModuleDependency(group, name, version, "default")
-        if (artifact != null && !artifact.isEmpty()) {
-            dependency.addArtifact(DefaultDependencyArtifact(name, "jar", "jar", artifact, null))
-        }
-        return dependency
     }
 }

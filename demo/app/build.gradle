@@ -30,12 +30,12 @@ android {
 }
 
 dependencies {
+    implementation "androidx.core:core-ktx:1.9.0"
+    implementation project(":demo:standalonelib")
     implementation project(":demo:feature:base")
     implementation project(":demo:lib:components")
-    implementation project(":demo:standalonelib")
     implementation project(":demo:feature:splash")
 
-    implementation "androidx.core:core-ktx:1.9.0"
     api "androidx.appcompat:appcompat:1.6.1"
     api "androidx.constraintlayout:constraintlayout:2.1.4"
     implementation"org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
