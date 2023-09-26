@@ -23,12 +23,16 @@ class AARSettings {
         const val ENABLE_MAVEN = "aarEnableMaven"
         const val ENABLE_MULTI_MODULE = "aarEnableMultiModule"
         const val KEEP_MODULES = "aarKeepModules"
+        const val USE_SETTINGS_MODULES = "arrUseSettingsModules"
+        const val USE_TEST_MODE = "arrTestMode"
     }
 
-    var aarDebugLog = false
+    var aarEnableLog = false
     var aarEnableMaven = false
     var aarEnableMultiModule = false
     var aarKeepModules = ArrayList<String>()
+    var arrUseSettingsModules = false
+    var arrTestMode = false
 
     fun loadProperties(gradle: Gradle) {
         aarKeepModules.clear()
@@ -48,8 +52,14 @@ class AARSettings {
                 aarEnableMaven = properties.getProperty(ENABLE_MAVEN, "false").toBoolean()
             }
 
-            if (!aarDebugLog) {
-                aarDebugLog = properties.getProperty(ENABLE_DEBUG_LOG, "false").toBoolean()
+            if (!aarEnableLog) {
+                aarEnableLog = properties.getProperty(ENABLE_DEBUG_LOG, "false").toBoolean()
+            }
+            if (!arrUseSettingsModules) {
+                arrUseSettingsModules = properties.getProperty(USE_SETTINGS_MODULES, "true").toBoolean()
+            }
+            if (!arrTestMode) {
+                arrTestMode = properties.getProperty(USE_TEST_MODE, "false").toBoolean()
             }
         }
     }

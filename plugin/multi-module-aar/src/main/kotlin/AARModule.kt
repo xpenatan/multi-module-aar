@@ -93,8 +93,9 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                 } else {
                     configurations.forEach { artifactList.addAll(it.artifacts) }
                 }
+                val haveArtifact = (artifactList.size > 0 && aarSettings.arrTestMode)
 
-                if (haveEntry) {
+                if (haveEntry || haveArtifact) {
                     project.pluginManager.apply(MavenPublishPlugin::class.java)
                     project.extensions.configure(PublishingExtension::class.java) {
                         let { publishing ->
@@ -108,7 +109,7 @@ class AARModule : AARDependencyHandler.InvokeMethod {
 
                             }
                             publishing.publications {
-                                if (aarSettings.aarDebugLog) {
+                                if (aarSettings.aarEnableLog) {
                                     logger.error("AARPlugin: Adding maven to ${project.path}")
                                 }
                                 let { publications ->
@@ -181,9 +182,15 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                             val targetProject = projectRoot.findProject(mod)
                             if (targetProject != null) {
                                 // Convert pom dependency to project module
-                                val useTargetProject = aarSettings.aarKeepModules.contains(mod)
+                                var useTargetProject = false
+                                if(aarSettings.arrUseSettingsModules) {
+                                    useTargetProject = projectRoot.findProject(mod) != null
+                                }
+                                else {
+                                    useTargetProject = aarSettings.aarKeepModules.contains(mod)
+                                }
                                 if (useTargetProject) {
-                                    if (aarSettings.aarDebugLog) {
+                                    if (aarSettings.aarEnableLog) {
                                         project.logger.error("AARPlugin: ${project.path} - KeepModule: $mod - Config: ${config.name}")
                                     }
                                     dependency.useTarget(targetProject)
@@ -196,7 +203,13 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                         } else if (componentSelector is ProjectComponentSelector) {
                             val module = componentSelector.projectPath
                             if (project.path != module) {
-                                val isDevAARModule = aarSettings.aarKeepModules.contains(module)
+                                var isDevAARModule = false
+                                if(aarSettings.arrUseSettingsModules) {
+                                    isDevAARModule = projectRoot.findProject(module) != null
+                                }
+                                else {
+                                    isDevAARModule = aarSettings.aarKeepModules.contains(module)
+                                }
                                 if (!isDevAARModule) {
                                     val pair = getModuleMap(module)
                                     val groupName = pair.first
