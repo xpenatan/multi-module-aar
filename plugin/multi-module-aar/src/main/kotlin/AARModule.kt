@@ -20,6 +20,7 @@ import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
 import org.gradle.api.initialization.Settings
 import org.gradle.api.internal.artifacts.dsl.dependencies.DefaultDependencyHandler
+import org.gradle.api.internal.artifacts.publish.DefaultPublishArtifact
 import org.gradle.api.internal.component.DefaultSoftwareComponentContainer
 import org.gradle.api.internal.project.DefaultProject
 import org.gradle.api.publish.PublishingExtension
@@ -91,9 +92,15 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                 if (entry != null) {
                     haveEntry = !(entry.key.contains("aab") || entry.key.contains("apk"))
                 } else {
-                    configurations.forEach { artifactList.addAll(it.artifacts) }
+                    if(aarSettings.arrTestMode) {
+                        configurations.forEach {
+                            val t = it as DefaultPublishArtifact
+                            if(t.classifier == null) { t.classifier = t.name }
+                            artifactList.addAll(it.artifacts)
+                        }
+                    }
                 }
-                val haveArtifact = (artifactList.size > 0 && aarSettings.arrTestMode)
+                val haveArtifact = (artifactList.size > 0)
 
                 if (haveEntry || haveArtifact) {
                     project.pluginManager.apply(MavenPublishPlugin::class.java)
