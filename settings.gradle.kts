@@ -4,7 +4,7 @@ pluginManagement {
 }
 
 plugins {
-    id("io.github.xpenatan.multi-module-aar") version "0.3"
+    id("io.github.xpenatan.multi-module-aar") version "0.4"
 }
 
 include(":demo:app")
