@@ -34,6 +34,7 @@ import org.gradle.internal.metaobject.DynamicInvokeResult
 import org.gradle.internal.metaobject.MethodAccess
 import org.gradle.internal.metaobject.MethodMixIn
 
+
 class AARDependencyHandler(private val handler: DefaultDependencyHandler, private val invoker: InvokeMethod) : DependencyHandler, MethodMixIn, MethodAccess {
 
     interface InvokeMethod {
@@ -57,6 +58,19 @@ class AARDependencyHandler(private val handler: DefaultDependencyHandler, privat
     }
 
     override fun add(configurationName: String, dependencyNotation: Any): Dependency? {
+        if(dependencyNotation is CustomDefaultProjectDependency) {
+            val mod = invoker as AARModule
+            val path = dependencyNotation.path
+            val pair = mod.getModuleMap(path)
+            val groupName = pair.first
+            val moduleName = pair.second
+            val versionName = mod.aarVersion
+            val arrName = "${groupName}:${moduleName}:${versionName}"
+            val t = arrayOf(arrayOf(arrName as Object))
+            val tryInvokeMethod = handler.additionalMethods.tryInvokeMethod("implementation", t)
+            return handler.add("implementation", tryInvokeMethod.value)
+        }
+
         return handler.add(configurationName, dependencyNotation)
     }
 
@@ -97,6 +111,12 @@ class AARDependencyHandler(private val handler: DefaultDependencyHandler, privat
     }
 
     override fun project(notation: MutableMap<String, *>): Dependency {
+        val path = notation["path"] as String
+        val mod = invoker as AARModule
+        val findProject = mod.projectRoot.findProject(path)
+        if(findProject == null) {
+            return CustomDefaultProjectDependency(path)
+        }
         return handler.project(notation)
     }
 
@@ -157,7 +177,7 @@ class AARDependencyHandler(private val handler: DefaultDependencyHandler, privat
     }
 
     override fun <T : TransformParameters?> registerTransform(actionType: Class<out TransformAction<T>>, registrationAction: Action<in TransformSpec<T>>) {
-        return handler.registerTransform(actionType, registrationAction)
+        handler.registerTransform(actionType, registrationAction)
     }
 
     override fun platform(notation: Any): Dependency {

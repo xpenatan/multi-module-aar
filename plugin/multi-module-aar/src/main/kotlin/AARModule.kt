@@ -20,6 +20,8 @@ import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
 import org.gradle.api.initialization.Settings
 import org.gradle.api.internal.artifacts.dsl.dependencies.DefaultDependencyHandler
+import org.gradle.api.internal.artifacts.ivyservice.dependencysubstitution.DefaultDependencySubstitution
+import org.gradle.api.internal.artifacts.ivyservice.resolutionstrategy.DefaultResolutionStrategy
 import org.gradle.api.internal.artifacts.publish.DefaultPublishArtifact
 import org.gradle.api.internal.component.DefaultSoftwareComponentContainer
 import org.gradle.api.internal.project.DefaultProject
@@ -37,9 +39,9 @@ class AARModule : AARDependencyHandler.InvokeMethod {
     private var aarSettings = AARSettings()
 
     private var aarMavenPath = ""
-    private var aarVersion = "1.0"
+    var aarVersion = "1.0"
 
-    private lateinit var projectRoot: Project
+    lateinit var projectRoot: Project
 
     private var init = false
     private var projectCount = 0
@@ -92,10 +94,12 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                 if (entry != null) {
                     haveEntry = !(entry.key.contains("aab") || entry.key.contains("apk"))
                 } else {
-                    if(aarSettings.arrTestMode) {
+                    if (aarSettings.arrTestMode) {
                         configurations.forEach {
                             val t = it as DefaultPublishArtifact
-                            if(t.classifier == null) { t.classifier = t.name }
+                            if (t.classifier == null) {
+                                t.classifier = t.name
+                            }
                             artifactList.addAll(it.artifacts)
                         }
                     }
@@ -177,53 +181,53 @@ class AARModule : AARDependencyHandler.InvokeMethod {
 
         project.configurations.configureEach {
             let { config ->
-                resolutionStrategy.dependencySubstitution.all {
-                    let { dependency ->
-                        val componentSelector = dependency.requested
-                        if (componentSelector is ModuleComponentSelector) {
-                            var mod = componentSelector.module
-                            var groupStr = componentSelector.group
-                            groupStr = groupStr.replace("${projectRoot.name}", "")
-                            groupStr = groupStr.replace(".", ":")
-                            mod = "${groupStr}:${mod}"
-                            val targetProject = projectRoot.findProject(mod)
-                            if (targetProject != null) {
-                                // Convert pom dependency to project module
-                                var useTargetProject = false
-                                if(aarSettings.arrUseSettingsModules) {
-                                    useTargetProject = projectRoot.findProject(mod) != null
-                                }
-                                else {
-                                    useTargetProject = aarSettings.aarKeepModules.contains(mod)
-                                }
-                                if (useTargetProject) {
-                                    if (aarSettings.aarEnableLog) {
-                                        project.logger.error("AARPlugin: ${project.path} - KeepModule: $mod - Config: ${config.name}")
+                resolutionStrategy {
+                    dependencySubstitution.all {
+                        (this as DefaultDependencySubstitution).let { dependency ->
+                            val componentSelector = dependency.requested
+                            if (componentSelector is ModuleComponentSelector) {
+                                var mod = componentSelector.module
+                                var groupStr = componentSelector.group
+                                groupStr = groupStr.replace("${projectRoot.name}", "")
+                                groupStr = groupStr.replace(".", ":")
+                                mod = "${groupStr}:${mod}"
+                                val targetProject = projectRoot.findProject(mod)
+                                if (targetProject != null) {
+                                    // Convert pom dependency to project module
+                                    var useTargetProject = false
+                                    if (aarSettings.arrUseSettingsModules) {
+                                        useTargetProject = projectRoot.findProject(mod) != null
+                                    } else {
+                                        useTargetProject = aarSettings.aarKeepModules.contains(mod)
                                     }
-                                    dependency.useTarget(targetProject)
-                                } else {
-                                    if (project.path == mod) {
+                                    if (useTargetProject) {
+                                        if (aarSettings.aarEnableLog) {
+                                            project.logger.error("AARPlugin: ${project.path} - KeepModule: $mod - Config: ${config.name}")
+                                        }
                                         dependency.useTarget(targetProject)
+                                    } else {
+                                        if (project.path == mod) {
+                                            dependency.useTarget(targetProject)
+                                        }
                                     }
                                 }
-                            }
-                        } else if (componentSelector is ProjectComponentSelector) {
-                            val module = componentSelector.projectPath
-                            if (project.path != module) {
-                                var isDevAARModule = false
-                                if(aarSettings.arrUseSettingsModules) {
-                                    isDevAARModule = projectRoot.findProject(module) != null
-                                }
-                                else {
-                                    isDevAARModule = aarSettings.aarKeepModules.contains(module)
-                                }
-                                if (!isDevAARModule) {
-                                    val pair = getModuleMap(module)
-                                    val groupName = pair.first
-                                    val moduleName = pair.second
-                                    val versionName = aarVersion
-                                    val arrName = "${groupName}:${moduleName}:${versionName}"
-                                    dependency.useTarget(arrName)
+                            } else if (componentSelector is ProjectComponentSelector) {
+                                val module = componentSelector.projectPath
+                                if (project.path != module) {
+                                    var isDevAARModule = false
+                                    if (aarSettings.arrUseSettingsModules) {
+                                        isDevAARModule = projectRoot.findProject(module) != null
+                                    } else {
+                                        isDevAARModule = aarSettings.aarKeepModules.contains(module)
+                                    }
+                                    if (!isDevAARModule) {
+                                        val pair = getModuleMap(module)
+                                        val groupName = pair.first
+                                        val moduleName = pair.second
+                                        val versionName = aarVersion
+                                        val arrName = "${groupName}:${moduleName}:${versionName}"
+                                        dependency.useTarget(arrName)
+                                    }
                                 }
                             }
                         }
@@ -233,7 +237,7 @@ class AARModule : AARDependencyHandler.InvokeMethod {
         }
     }
 
-    private fun getModuleMap(moduleName: String): Pair<String, String> {
+    fun getModuleMap(moduleName: String): Pair<String, String> {
         var moduleStr = moduleName
         if (moduleStr.startsWith(":")) {
             // Remove the first double dots
