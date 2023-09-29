@@ -27,6 +27,7 @@ import org.gradle.api.internal.project.DefaultProject
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin
+import org.gradle.initialization.DefaultSettings
 import org.gradle.internal.metaobject.DynamicInvokeResult
 import org.gradle.internal.metaobject.MethodAccess
 import org.gradle.kotlin.dsl.repositories
@@ -48,10 +49,30 @@ class AARModule : AARDependencyHandler.InvokeMethod {
     fun apply(settings: Settings) {
         val gradle = settings.gradle
 
+        gradle.settingsEvaluated {
+            aarSettings.loadProperties(gradle, this as DefaultSettings)
+//            val root = settings.rootProject as DefaultProjectDescriptor
+//            val projectDescriptorRegistry = root.projectDescriptorRegistry as DefaultProjectDescriptorRegistry
+//            val projectsField = DefaultProjectRegistry::class.java.getDeclaredField("projects")
+//            val subProjectsField = DefaultProjectRegistry::class.java.getDeclaredField("subProjects")
+//            projectsField.isAccessible = true
+//            subProjectsField.isAccessible = true
+//            val projectMap = projectsField.get(projectDescriptorRegistry) as HashMap<String, DefaultProjectDescriptor>
+//            val subProjectMap = subProjectsField.get(projectDescriptorRegistry) as HashMap<String, HashSet<DefaultProjectDescriptor>>
+//            val iterator = projectMap.iterator()
+//            while(iterator.hasNext()) {
+//                val next = iterator.next()
+//                val key = next.key
+//                if(key != ":") {
+//                    iterator.remove()
+//                }
+//            }
+////            projectMap.clear()
+        }
+
         gradle.beforeProject {
             if (!init) {
                 init = true
-                aarSettings.loadProperties(gradle)
                 projectRoot = rootProject
                 val path = project.rootDir.path
                 aarMavenPath = "$path/localAARMavenRepository"

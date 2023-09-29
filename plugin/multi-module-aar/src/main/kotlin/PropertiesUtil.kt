@@ -15,6 +15,7 @@
  ******************************************************************************/
 
 import org.gradle.api.invocation.Gradle
+import org.gradle.initialization.DefaultSettings
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -26,11 +27,11 @@ class PropertiesUtil {
         private const val PROPERTY_GRADLE_LOCAL = "local.properties"
         private const val PROPERTY_GRADLE = "gradle.properties"
 
-        fun findAllGradleProperties(gradle: Gradle): List<Properties> {
-            val projectDir: File = gradle.rootProject.projectDir
+        fun findAllGradleProperties(gradle: Gradle, settings: DefaultSettings): List<Properties> {
+            val rootDir = settings.rootDir
             val usersGradleProperties: Properties? = findUsersGradleProperties(gradle)
-            val localProperties: Properties? = findLocalProperties(projectDir)
-            val gradleProperties: Properties? = findGradleProperties(projectDir)
+            val localProperties: Properties? = findLocalProperties(rootDir)
+            val gradleProperties: Properties? = findGradleProperties(rootDir)
             val list: ArrayList<Properties> = ArrayList()
             if (usersGradleProperties != null) list.add(usersGradleProperties)
             if (localProperties != null) list.add(localProperties)

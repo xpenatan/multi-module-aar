@@ -15,6 +15,7 @@
  ******************************************************************************/
 
 import org.gradle.api.invocation.Gradle
+import org.gradle.initialization.DefaultSettings
 import java.util.ArrayList
 
 class AARSettings {
@@ -34,9 +35,9 @@ class AARSettings {
     var arrUseSettingsModules = false
     var arrTestMode = false
 
-    fun loadProperties(gradle: Gradle) {
+    fun loadProperties(gradle: Gradle, settings: DefaultSettings) {
         aarKeepModules.clear()
-        val propertiesList = PropertiesUtil.findAllGradleProperties(gradle)
+        val propertiesList = PropertiesUtil.findAllGradleProperties(gradle, settings)
         propertiesList.forEach { properties ->
             if (!aarEnableMultiModule) {
                 aarEnableMultiModule = properties.getProperty(ENABLE_MULTI_MODULE, "false").toBoolean()
