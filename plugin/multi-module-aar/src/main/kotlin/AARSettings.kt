@@ -26,14 +26,18 @@ class AARSettings {
         const val KEEP_MODULES = "aarKeepModules"
         const val USE_SETTINGS_MODULES = "arrUseSettingsModules"
         const val USE_TEST_MODE = "arrTestMode"
+        const val REPOSITORY_NAME = "arrRepositoryName"
+        const val SHOW_DEPENDENCY = "arrShowDependency"
     }
 
     var aarEnableLog = false
     var aarEnableMaven = false
     var aarEnableMultiModule = false
+    var aarShowDependency = false
     var aarKeepModules = ArrayList<String>()
-    var arrUseSettingsModules = false
+    var arrModulesMode = ArrModulesMode.USE_SETTINGS
     var arrTestMode = false
+    var mavenRepositoryName = "localAARMavenRepository"
 
     fun loadProperties(gradle: Gradle, settings: DefaultSettings) {
         aarKeepModules.clear()
@@ -56,12 +60,27 @@ class AARSettings {
             if (!aarEnableLog) {
                 aarEnableLog = properties.getProperty(ENABLE_DEBUG_LOG, "false").toBoolean()
             }
-            if (!arrUseSettingsModules) {
-                arrUseSettingsModules = properties.getProperty(USE_SETTINGS_MODULES, "true").toBoolean()
+            if (arrModulesMode == ArrModulesMode.USE_SETTINGS) {
+                val value = properties.getProperty(USE_SETTINGS_MODULES, "0").toInt()
+                when(value) {
+                    0 -> arrModulesMode = ArrModulesMode.USE_SETTINGS
+                    1 -> arrModulesMode = ArrModulesMode.USE_PROPERTIES
+                    2 -> arrModulesMode = ArrModulesMode.USE_PROPERTIES_AND_VISIBILITY
+                }
             }
             if (!arrTestMode) {
                 arrTestMode = properties.getProperty(USE_TEST_MODE, "false").toBoolean()
             }
+            if (!aarShowDependency) {
+                aarShowDependency = properties.getProperty(SHOW_DEPENDENCY, "false").toBoolean()
+            }
+            mavenRepositoryName = properties.getProperty(REPOSITORY_NAME, mavenRepositoryName).toString()
         }
+    }
+
+    enum class ArrModulesMode {
+        USE_SETTINGS, // Settings control module visibility
+        USE_PROPERTIES, // Properties control to use aar or not
+        USE_PROPERTIES_AND_VISIBILITY // Properties control to use aar or not and enable/disable modules visibility
     }
 }

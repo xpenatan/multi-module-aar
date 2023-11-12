@@ -14,6 +14,7 @@
  * limitations under the License.
  ******************************************************************************/
 
+import AARSettings.ArrModulesMode
 import org.gradle.api.Project
 import org.gradle.api.artifacts.PublishArtifact
 import org.gradle.api.artifacts.component.ModuleComponentSelector
@@ -24,15 +25,19 @@ import org.gradle.api.internal.artifacts.ivyservice.dependencysubstitution.Defau
 import org.gradle.api.internal.artifacts.publish.DefaultPublishArtifact
 import org.gradle.api.internal.component.DefaultSoftwareComponentContainer
 import org.gradle.api.internal.project.DefaultProject
+import org.gradle.api.internal.project.DefaultProjectRegistry
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin
+import org.gradle.initialization.DefaultProjectDescriptor
+import org.gradle.initialization.DefaultProjectDescriptorRegistry
 import org.gradle.initialization.DefaultSettings
 import org.gradle.internal.metaobject.DynamicInvokeResult
 import org.gradle.internal.metaobject.MethodAccess
 import org.gradle.kotlin.dsl.repositories
 import java.io.File
 import java.util.*
+import kotlin.collections.HashMap
 
 class AARModule : AARDependencyHandler.InvokeMethod {
 
@@ -45,29 +50,35 @@ class AARModule : AARDependencyHandler.InvokeMethod {
 
     private var init = false
     private var projectCount = 0
+    private var projectDependency = AARProjectDependency()
 
     fun apply(settings: Settings) {
         val gradle = settings.gradle
 
         gradle.settingsEvaluated {
             aarSettings.loadProperties(gradle, this as DefaultSettings)
-//            val root = settings.rootProject as DefaultProjectDescriptor
-//            val projectDescriptorRegistry = root.projectDescriptorRegistry as DefaultProjectDescriptorRegistry
-//            val projectsField = DefaultProjectRegistry::class.java.getDeclaredField("projects")
-//            val subProjectsField = DefaultProjectRegistry::class.java.getDeclaredField("subProjects")
-//            projectsField.isAccessible = true
-//            subProjectsField.isAccessible = true
-//            val projectMap = projectsField.get(projectDescriptorRegistry) as HashMap<String, DefaultProjectDescriptor>
-//            val subProjectMap = subProjectsField.get(projectDescriptorRegistry) as HashMap<String, HashSet<DefaultProjectDescriptor>>
-//            val iterator = projectMap.iterator()
-//            while(iterator.hasNext()) {
-//                val next = iterator.next()
-//                val key = next.key
-//                if(key != ":") {
-//                    iterator.remove()
+
+            if (aarSettings.arrModulesMode == ArrModulesMode.USE_PROPERTIES_AND_VISIBILITY) {
+                val root = settings.rootProject as DefaultProjectDescriptor
+                val projectDescriptorRegistry = root.projectDescriptorRegistry as DefaultProjectDescriptorRegistry
+                val projectsField = DefaultProjectRegistry::class.java.getDeclaredField("projects")
+                val subProjectsField = DefaultProjectRegistry::class.java.getDeclaredField("subProjects")
+                projectsField.isAccessible = true
+                subProjectsField.isAccessible = true
+                val projectMap =
+                    projectsField.get(projectDescriptorRegistry) as HashMap<String, DefaultProjectDescriptor>
+                val subProjectMap =
+                    subProjectsField.get(projectDescriptorRegistry) as HashMap<String, HashSet<DefaultProjectDescriptor>>
+                val iterator = projectMap.iterator()
+//                while(iterator.hasNext()) {
+//                    val next = iterator.next()
+//                    val key = next.key
+//                    if(key != ":") {
+//                        iterator.remove()
+//                    }
 //                }
-//            }
-////            projectMap.clear()
+//                projectMap.clear()
+            }
         }
 
         gradle.beforeProject {
@@ -75,7 +86,7 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                 init = true
                 projectRoot = rootProject
                 val path = project.rootDir.path
-                aarMavenPath = "$path/localAARMavenRepository"
+                aarMavenPath = "$path/${aarSettings.mavenRepositoryName}"
             }
             if (aarSettings.aarEnableMaven) {
                 configureMaven(this)
@@ -100,6 +111,23 @@ class AARModule : AARDependencyHandler.InvokeMethod {
         gradle.projectsEvaluated {
             if (aarSettings.aarEnableMultiModule) {
                 rootProject.logger.error("AARPlugin: Total Projects $projectCount")
+            }
+        }
+
+        gradle.buildFinished {
+            if(aarSettings.aarEnableMultiModule && aarSettings.aarShowDependency) {
+                projectRoot.logger.error("Project Dependency size: " + projectDependency.dependency.size)
+                projectDependency.dependency.forEach { entry ->
+                    val key = entry.key
+                    val value = entry.value
+
+                    val inSize = value.filter { str -> str.startsWith("IN") }.size
+                    val outSize = value.filter { str -> str.startsWith("OUT") }.size
+                    projectRoot.logger.error("\n####### $key\nSize: IN: $inSize OUT: $outSize")
+                    value.forEach { module ->
+                        projectRoot.logger.error(module)
+                    }
+                }
             }
         }
     }
@@ -132,10 +160,10 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                         let { publishing ->
                             publishing.repositories {
                                 let { repositories ->
-                                    repositories.mavenLocal()
                                     repositories.maven {
                                         url = File(aarMavenPath).toURI()
                                     }
+                                    repositories.mavenLocal()
                                 }
 
                             }
@@ -192,10 +220,10 @@ class AARModule : AARDependencyHandler.InvokeMethod {
     private fun configureDependencies(project: Project) {
         project.repositories {
             let { repositories ->
-                repositories.mavenLocal()
                 repositories.maven {
                     url = File(aarMavenPath).toURI()
                 }
+                repositories.mavenLocal()
             }
         }
 
@@ -215,8 +243,8 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                                 if (targetProject != null) {
                                     // Convert pom dependency to project module
                                     var useTargetProject = false
-                                    if (aarSettings.arrUseSettingsModules) {
-                                        useTargetProject = projectRoot.findProject(mod) != null
+                                    if (aarSettings.arrModulesMode == ArrModulesMode.USE_SETTINGS) {
+                                        useTargetProject = true
                                     } else {
                                         useTargetProject = aarSettings.aarKeepModules.contains(mod)
                                     }
@@ -234,8 +262,10 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                             } else if (componentSelector is ProjectComponentSelector) {
                                 val module = componentSelector.projectPath
                                 if (project.path != module) {
+                                    projectDependency.addProject(project.path, "IN " + module)
+                                    projectDependency.addProject(module, "OUT " + project.path)
                                     var isDevAARModule = false
-                                    if (aarSettings.arrUseSettingsModules) {
+                                    if (aarSettings.arrModulesMode == ArrModulesMode.USE_SETTINGS) {
                                         isDevAARModule = projectRoot.findProject(module) != null
                                     } else {
                                         isDevAARModule = aarSettings.aarKeepModules.contains(module)

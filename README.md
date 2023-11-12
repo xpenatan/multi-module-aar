@@ -20,6 +20,7 @@ plugins {
 aarEnableLog=false
 aarEnableMaven=false
 aarEnableMultiModule=false
+arrShowDependency=false
 aarKeepModules=
 
 To generate aar set aarEnableMaven to true and sync. 
