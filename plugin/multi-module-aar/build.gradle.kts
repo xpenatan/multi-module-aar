@@ -22,7 +22,7 @@ plugins {
 }
 
 group = "io.github.xpenatan"
-version = "0.5"
+version = "0.6"
 
 repositories {
     mavenCentral()

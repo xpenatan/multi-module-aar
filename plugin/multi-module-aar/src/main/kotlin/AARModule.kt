@@ -58,6 +58,10 @@ class AARModule : AARDependencyHandler.InvokeMethod {
         gradle.settingsEvaluated {
             aarSettings.loadProperties(gradle, this as DefaultSettings)
 
+            settings.startParameter.isBuildCacheEnabled = aarSettings.aarCacheEnabled
+            settings.startParameter.isContinuous = aarSettings.aarCacheEnabled
+            settings.startParameter.isRerunTasks = aarSettings.aarTaskShouldRerun
+
             if (aarSettings.arrModulesMode == ArrModulesMode.USE_PROPERTIES_AND_VISIBILITY) {
                 val root = settings.rootProject as DefaultProjectDescriptor
                 val projectDescriptorRegistry = root.projectDescriptorRegistry as DefaultProjectDescriptorRegistry
@@ -98,6 +102,9 @@ class AARModule : AARDependencyHandler.InvokeMethod {
         }
 
         gradle.afterProject {
+
+
+
             if (configurations.size > 0) {
                 if (aarSettings.aarEnableMultiModule) {
                     if (buildFile.exists()) {

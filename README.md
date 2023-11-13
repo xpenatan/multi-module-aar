@@ -21,6 +21,8 @@ aarEnableLog=false
 aarEnableMaven=false
 aarEnableMultiModule=false
 arrShowDependency=false
+aarCacheEnabled=false
+aarTaskShouldRerun=true
 aarKeepModules=
 
 To generate aar set aarEnableMaven to true and sync. 

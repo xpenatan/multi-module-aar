@@ -28,12 +28,16 @@ class AARSettings {
         const val USE_TEST_MODE = "arrTestMode"
         const val REPOSITORY_NAME = "arrRepositoryName"
         const val SHOW_DEPENDENCY = "arrShowDependency"
+        const val ENABLED_CACHE = "aarCacheEnabled"
+        const val TASK_RERUN = "aarTaskShouldRerun"
     }
 
     var aarEnableLog = false
     var aarEnableMaven = false
     var aarEnableMultiModule = false
     var aarShowDependency = false
+    var aarCacheEnabled = false
+    var aarTaskShouldRerun = true
     var aarKeepModules = ArrayList<String>()
     var arrModulesMode = ArrModulesMode.USE_SETTINGS
     var arrTestMode = false
@@ -73,6 +77,12 @@ class AARSettings {
             }
             if (!aarShowDependency) {
                 aarShowDependency = properties.getProperty(SHOW_DEPENDENCY, "false").toBoolean()
+            }
+            if (!aarCacheEnabled) {
+                aarCacheEnabled = properties.getProperty(ENABLED_CACHE, "false").toBoolean()
+            }
+            if (aarTaskShouldRerun) {
+                aarTaskShouldRerun = properties.getProperty(TASK_RERUN, "true").toBoolean()
             }
             mavenRepositoryName = properties.getProperty(REPOSITORY_NAME, mavenRepositoryName).toString()
         }
