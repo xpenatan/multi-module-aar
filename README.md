@@ -20,7 +20,7 @@ plugins {
 aarEnableLog=false
 aarEnableMaven=false
 aarEnableMultiModule=false
-arrShowDependency=false
+aarShowDependency=false
 aarCacheEnabled=false
 aarTaskShouldRerun=true
 aarKeepModules=

@@ -27,7 +27,7 @@ class AARSettings {
         const val USE_SETTINGS_MODULES = "arrUseSettingsModules"
         const val USE_TEST_MODE = "arrTestMode"
         const val REPOSITORY_NAME = "arrRepositoryName"
-        const val SHOW_DEPENDENCY = "arrShowDependency"
+        const val SHOW_DEPENDENCY = "aarShowDependency"
         const val ENABLED_CACHE = "aarCacheEnabled"
         const val TASK_RERUN = "aarTaskShouldRerun"
     }
