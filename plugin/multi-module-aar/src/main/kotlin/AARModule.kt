@@ -20,6 +20,7 @@ import org.gradle.api.artifacts.PublishArtifact
 import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
 import org.gradle.api.initialization.Settings
+import org.gradle.api.internal.artifacts.dependencies.DefaultProjectDependency
 import org.gradle.api.internal.artifacts.dsl.dependencies.DefaultDependencyHandler
 import org.gradle.api.internal.artifacts.ivyservice.dependencysubstitution.DefaultDependencySubstitution
 import org.gradle.api.internal.artifacts.publish.DefaultPublishArtifact
@@ -102,9 +103,6 @@ class AARModule : AARDependencyHandler.InvokeMethod {
         }
 
         gradle.afterProject {
-
-
-
             if (configurations.size > 0) {
                 if (aarSettings.aarEnableMultiModule) {
                     if (buildFile.exists()) {
@@ -118,22 +116,9 @@ class AARModule : AARDependencyHandler.InvokeMethod {
         gradle.projectsEvaluated {
             if (aarSettings.aarEnableMultiModule) {
                 rootProject.logger.error("AARPlugin: Total Projects $projectCount")
-            }
-        }
 
-        gradle.buildFinished {
-            if(aarSettings.aarEnableMultiModule && aarSettings.aarShowDependency) {
-                projectRoot.logger.error("Project Dependency size: " + projectDependency.dependency.size)
-                projectDependency.dependency.forEach { entry ->
-                    val key = entry.key
-                    val value = entry.value
-
-                    val inSize = value.filter { str -> str.startsWith("IN") }.size
-                    val outSize = value.filter { str -> str.startsWith("OUT") }.size
-                    projectRoot.logger.error("\n####### $key\nSize: IN: $inSize OUT: $outSize")
-                    value.forEach { module ->
-                        projectRoot.logger.error(module)
-                    }
+                if(aarSettings.aarShowDependency) {
+                    projectDependency.printDependency(projectRoot.logger)
                 }
             }
         }
@@ -237,6 +222,13 @@ class AARModule : AARDependencyHandler.InvokeMethod {
         project.configurations.configureEach {
             let { config ->
                 resolutionStrategy {
+                    dependencies.forEach {
+                        if(it is DefaultProjectDependency) {
+                            val path = it.dependencyProject.path
+                            projectDependency.addProject(project.path, path, AARProjectDependency.DependencyType.DEP)
+                            projectDependency.addProject(path, project.path, AARProjectDependency.DependencyType.REF)
+                        }
+                    }
                     dependencySubstitution.all {
                         (this as DefaultDependencySubstitution).let { dependency ->
                             val componentSelector = dependency.requested
@@ -269,8 +261,6 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                             } else if (componentSelector is ProjectComponentSelector) {
                                 val module = componentSelector.projectPath
                                 if (project.path != module) {
-                                    projectDependency.addProject(project.path, "IN " + module)
-                                    projectDependency.addProject(module, "OUT " + project.path)
                                     var isDevAARModule = false
                                     if (aarSettings.arrModulesMode == ArrModulesMode.USE_SETTINGS) {
                                         isDevAARModule = projectRoot.findProject(module) != null
