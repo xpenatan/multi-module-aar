@@ -58,33 +58,34 @@ class AARModule : AARDependencyHandler.InvokeMethod {
 
         gradle.settingsEvaluated {
             aarSettings.loadProperties(gradle, this as DefaultSettings)
+            if (aarSettings.aarEnableMultiModule) {
+                settings.startParameter.isBuildCacheEnabled = aarSettings.aarCacheEnabled
+                settings.startParameter.isContinuous = aarSettings.aarCacheEnabled
+                settings.startParameter.isRerunTasks = aarSettings.aarTaskShouldRerun
 
-            settings.startParameter.isBuildCacheEnabled = aarSettings.aarCacheEnabled
-            settings.startParameter.isContinuous = aarSettings.aarCacheEnabled
-            settings.startParameter.isRerunTasks = aarSettings.aarTaskShouldRerun
+                if (aarSettings.arrModulesMode == ArrModulesMode.USE_PROPERTIES_AND_VISIBILITY) {
+                    val root = settings.rootProject as DefaultProjectDescriptor
+                    val projectDescriptorRegistry = root.projectDescriptorRegistry as DefaultProjectDescriptorRegistry
+                    val projectsField = DefaultProjectRegistry::class.java.getDeclaredField("projects")
+                    projectsField.isAccessible = true
+                    val projectMap = projectsField.get(projectDescriptorRegistry) as HashMap<String, DefaultProjectDescriptor>
+                    val keys = HashMap<String, DefaultProjectDescriptor>()
+                    keys.putAll(projectMap)
 
-            if (aarSettings.arrModulesMode == ArrModulesMode.USE_PROPERTIES_AND_VISIBILITY) {
-                val root = settings.rootProject as DefaultProjectDescriptor
-                val projectDescriptorRegistry = root.projectDescriptorRegistry as DefaultProjectDescriptorRegistry
-                val projectsField = DefaultProjectRegistry::class.java.getDeclaredField("projects")
-                projectsField.isAccessible = true
-                val projectMap = projectsField.get(projectDescriptorRegistry) as HashMap<String, DefaultProjectDescriptor>
-                val keys = HashMap<String, DefaultProjectDescriptor>()
-                keys.putAll(projectMap)
-
-                // Remove projects from the registry
-                // Remove child projects from their parent
-                keys.forEach { key, projectDescription ->
-                    if(projectDescription.children().size == 0) {
-                        val keepThisModule = aarSettings.aarKeepModules.contains(key)
-                        if(!keepThisModule) {
-                            val parentProjectPath = key.substringBeforeLast(":")
-                            if (projectMap.contains(parentProjectPath)) {
-                                if(projectMap.contains(key)) {
-                                    val parentDescriptor = projectMap[parentProjectPath]
-                                    val childDescriptor = projectMap[key]
-                                    parentDescriptor!!.children.remove(childDescriptor)
-                                    projectMap.remove(key)
+                    // Remove projects from the registry
+                    // Remove child projects from their parent
+                    keys.forEach { key, projectDescription ->
+                        if(projectDescription.children().size == 0) {
+                            val keepThisModule = aarSettings.aarKeepModules.contains(key)
+                            if(!keepThisModule) {
+                                val parentProjectPath = key.substringBeforeLast(":")
+                                if (projectMap.contains(parentProjectPath)) {
+                                    if(projectMap.contains(key)) {
+                                        val parentDescriptor = projectMap[parentProjectPath]
+                                        val childDescriptor = projectMap[key]
+                                        parentDescriptor!!.children.remove(childDescriptor)
+                                        projectMap.remove(key)
+                                    }
                                 }
                             }
                         }
