@@ -17,19 +17,29 @@ plugins {
 
 // Create a local.properties file and add these properties:
 
-aarEnableLog=false
-aarEnableMaven=false
-aarEnableMultiModule=false
-aarShowDependency=false
 aarCacheEnabled=false
-aarTaskShouldRerun=true
-aarKeepModules=
+aarEnableLog=false
+aarEnableMaven=true
+aarEnableMultiModule=true
+aarShowDependency=false
+aarTaskShouldRerun=false
+arrUseSettingsModules=2
+aarKeepModules=\
+:demo:app \
+:demo:standaloneAARlib \
+:demo:standalonelib \
+:demo:feature:login:login \
+:demo:feature:login:start \
+:demo:feature:base \
+:demo:lib:components \
+:demo:feature:splash \
+:demo:feature:dashboard:start \
+:demo:feature:dashboard:dashboard
 
 To generate aar set aarEnableMaven to true and sync. 
 Call "./gradlew publishLocalAARPublicationToMavenRepository"
 aar files will be created in localAARMavenRepository folder
 
-use aarKeepModules property to select which modules will actually compile every build
-Ex: 
+Use aarKeepModules property to select which modules will actually compile every build
 
 ```

@@ -56,8 +56,8 @@ class AARModule : AARDependencyHandler.InvokeMethod {
     fun apply(settings: Settings) {
         val gradle = settings.gradle
 
+        aarSettings.loadProperties(gradle, settings as DefaultSettings)
         gradle.settingsEvaluated {
-            aarSettings.loadProperties(gradle, this as DefaultSettings)
             if (aarSettings.aarEnableMultiModule) {
                 settings.startParameter.isBuildCacheEnabled = aarSettings.aarCacheEnabled
                 settings.startParameter.isContinuous = aarSettings.aarCacheEnabled
@@ -155,31 +155,34 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                 val haveArtifact = (artifactList.size > 0)
 
                 if (haveEntry || haveArtifact) {
-                    project.pluginManager.apply(MavenPublishPlugin::class.java)
-                    project.extensions.configure(PublishingExtension::class.java) {
-                        let { publishing ->
-                            publishing.repositories {
-                                let { repositories ->
-                                    repositories.maven {
-                                        url = File(aarMavenPath).toURI()
+                    val containsModule = aarSettings.aarKeepModules.contains(project.path)
+                    if(!containsModule) {
+                        project.pluginManager.apply(MavenPublishPlugin::class.java)
+                        project.extensions.configure(PublishingExtension::class.java) {
+                            let { publishing ->
+                                publishing.repositories {
+                                    let { repositories ->
+                                        repositories.maven {
+                                            url = File(aarMavenPath).toURI()
+                                        }
+                                        repositories.mavenLocal()
                                     }
-                                    repositories.mavenLocal()
-                                }
 
-                            }
-                            publishing.publications {
-                                if (aarSettings.aarEnableLog) {
-                                    logger.error("AARPlugin: Adding maven to ${project.path}")
                                 }
-                                let { publications ->
-                                    publications.create("LocalAAR", MavenPublication::class.java) {
-                                        groupId = project.group.toString()
-                                        artifactId = project.name
-                                        version = aarVersion
-                                        if (entry != null) {
-                                            from(entry.value)
-                                        } else {
-                                            setArtifacts(artifactList)
+                                publishing.publications {
+                                    if (aarSettings.aarEnableLog) {
+                                        logger.error("AARPlugin: Adding maven to ${project.path}")
+                                    }
+                                    let { publications ->
+                                        publications.create("LocalAAR", MavenPublication::class.java) {
+                                            groupId = project.group.toString()
+                                            artifactId = project.name
+                                            version = aarVersion
+                                            if (entry != null) {
+                                                from(entry.value)
+                                            } else {
+                                                setArtifacts(artifactList)
+                                            }
                                         }
                                     }
                                 }

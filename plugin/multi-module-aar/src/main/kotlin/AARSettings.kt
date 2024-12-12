@@ -49,13 +49,11 @@ class AARSettings {
         propertiesList.forEach { properties ->
             if (!aarEnableMultiModule) {
                 aarEnableMultiModule = properties.getProperty(ENABLE_MULTI_MODULE, "false").toBoolean()
-                if (aarEnableMultiModule) {
-                    val aarKeepModulesStr = properties.getOrDefault(KEEP_MODULES, "").toString().trim()
-                    if (aarKeepModulesStr.isNotEmpty()) {
-                        val array = aarKeepModulesStr.split(" ")
-                        aarKeepModules.addAll(array)
-                    }
-                }
+            }
+            val aarKeepModulesStr = properties.getOrDefault(KEEP_MODULES, "").toString().trim()
+            if (aarKeepModulesStr.isNotEmpty()) {
+                val array = aarKeepModulesStr.split(" ")
+                aarKeepModules.addAll(array)
             }
             if (!aarEnableMaven) {
                 aarEnableMaven = properties.getProperty(ENABLE_MAVEN, "false").toBoolean()
