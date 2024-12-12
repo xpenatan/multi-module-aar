@@ -67,22 +67,29 @@ class AARModule : AARDependencyHandler.InvokeMethod {
                 val root = settings.rootProject as DefaultProjectDescriptor
                 val projectDescriptorRegistry = root.projectDescriptorRegistry as DefaultProjectDescriptorRegistry
                 val projectsField = DefaultProjectRegistry::class.java.getDeclaredField("projects")
-                val subProjectsField = DefaultProjectRegistry::class.java.getDeclaredField("subProjects")
                 projectsField.isAccessible = true
-                subProjectsField.isAccessible = true
-                val projectMap =
-                    projectsField.get(projectDescriptorRegistry) as HashMap<String, DefaultProjectDescriptor>
-                val subProjectMap =
-                    subProjectsField.get(projectDescriptorRegistry) as HashMap<String, HashSet<DefaultProjectDescriptor>>
-                val iterator = projectMap.iterator()
-//                while(iterator.hasNext()) {
-//                    val next = iterator.next()
-//                    val key = next.key
-//                    if(key != ":") {
-//                        iterator.remove()
-//                    }
-//                }
-//                projectMap.clear()
+                val projectMap = projectsField.get(projectDescriptorRegistry) as HashMap<String, DefaultProjectDescriptor>
+                val keys = HashMap<String, DefaultProjectDescriptor>()
+                keys.putAll(projectMap)
+
+                // Remove projects from the registry
+                // Remove child projects from their parent
+                keys.forEach { key, projectDescription ->
+                    if(projectDescription.children().size == 0) {
+                        val keepThisModule = aarSettings.aarKeepModules.contains(key)
+                        if(!keepThisModule) {
+                            val parentProjectPath = key.substringBeforeLast(":")
+                            if (projectMap.contains(parentProjectPath)) {
+                                if(projectMap.contains(key)) {
+                                    val parentDescriptor = projectMap[parentProjectPath]
+                                    val childDescriptor = projectMap[key]
+                                    parentDescriptor!!.children.remove(childDescriptor)
+                                    projectMap.remove(key)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -186,12 +193,20 @@ class AARModule : AARDependencyHandler.InvokeMethod {
     private fun configureInvalidCaller(project: Project) {
         val dep = project.dependencies as DefaultDependencyHandler
         val newHandler = AARDependencyHandler(dep, this)
-        val declaredField = DefaultProject::class.java.getDeclaredField("dependencyHandler")
-        declaredField.isAccessible = true
-        declaredField.set(project, newHandler)
+        try{
+            // Gradle 8.11+
+            val declaredField = project.javaClass.getDeclaredField("__dependencies__")
+            declaredField.isAccessible = true
+            declaredField.set(project, newHandler)
+        }
+        catch (e: Exception) {
+            val declaredField = DefaultProject::class.java.getDeclaredField("dependencyHandler")
+            declaredField.isAccessible = true
+            declaredField.set(project, newHandler)
+        }
     }
 
-    override fun invoke(method: MethodAccess, name: String?, vararg arguments: Any?): DynamicInvokeResult {
+    override fun invoke(method: MethodAccess, name: String, vararg arguments: Any?): DynamicInvokeResult {
         if (name == "project" && arguments.isNotEmpty()) {
             val any = arguments[0] as Array<*>
             val projectPath = any[0].toString()

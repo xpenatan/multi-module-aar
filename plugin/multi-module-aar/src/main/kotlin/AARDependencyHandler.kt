@@ -38,14 +38,14 @@ import org.gradle.internal.metaobject.MethodMixIn
 class AARDependencyHandler(private val handler: DefaultDependencyHandler, private val invoker: InvokeMethod) : DependencyHandler, MethodMixIn, MethodAccess {
 
     interface InvokeMethod {
-        fun invoke(method: MethodAccess, name: String?, vararg arguments: Any?) : DynamicInvokeResult
+        fun invoke(method: MethodAccess, name: String, vararg arguments: Any?) : DynamicInvokeResult
     }
 
-    override fun hasMethod(name: String?, vararg arguments: Any?): Boolean {
+    override fun hasMethod(name: String, vararg arguments: Any?): Boolean {
         return handler.additionalMethods.hasMethod(name)
     }
 
-    override fun tryInvokeMethod(name: String?, vararg arguments: Any?): DynamicInvokeResult {
+    override fun tryInvokeMethod(name: String, vararg arguments: Any?): DynamicInvokeResult {
         return invoker.invoke(handler.additionalMethods, name, arguments)
     }
 
@@ -68,7 +68,7 @@ class AARDependencyHandler(private val handler: DefaultDependencyHandler, privat
             val arrName = "${groupName}:${moduleName}:${versionName}"
             val t = arrayOf(arrayOf(arrName as Object))
             val tryInvokeMethod = handler.additionalMethods.tryInvokeMethod("implementation", t)
-            return handler.add("implementation", tryInvokeMethod.value)
+            return handler.add("implementation", tryInvokeMethod.value!!)
         }
 
         return handler.add(configurationName, dependencyNotation)
